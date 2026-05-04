@@ -1,60 +1,53 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <time.h>
 #include "terminal.h"
 
+
+/* ── Variables globales compartidas  */
+sem_t           semaforo_muelles;  
+pthread_mutex_t mutex_log;          
+int             camiones_completados = 0;
+
 int main(void) {
-    pid_t pid1, pid2;
+    srand((unsigned int)time(NULL));
 
-     pid1 = fork();
+    printf("========================================================\n");
+    printf("  EIF212 — SIMULADOR TERMINAL DE CARGA\n");
+    printf("  Muelles: %d  |  Camiones: %d\n", NUM_MUELLES, NUM_CAMIONES);
+    printf("========================================================\n\n");
 
-    if (pid1 < 0) {
-        perror("fork (hijo pares)");
-        exit(EXIT_FAILURE);
+    Camion    camiones[NUM_CAMIONES];
+    pthread_t hilos[NUM_CAMIONES];
+
+    for (int i = 0; i < NUM_CAMIONES; i++) {
+        inicializar_camion(&camiones[i], i + 1);
     }
 
-    if (pid1 == 0) {
-        /* Soy el hijo 1 */
-        printf("[Hijo PARES   | PID %d] Iniciando hilos de números pares...\n",
-               getpid());
-        ejecutar_hijo_pares();
-        printf("[Hijo PARES   | PID %d] Terminado.\n", getpid());
-        exit(EXIT_SUCCESS);
+    imprimir_tabla_camiones(camiones, NUM_CAMIONES);
+
+    printf("--- Iniciando simulación ---\n\n");
+
+    for (int i = 0; i < NUM_CAMIONES; i++) {
+        if (pthread_create(&hilos[i], NULL, rutina_camion, &camiones[i]) != 0) {
+            perror("pthread_create");
+            exit(EXIT_FAILURE);
+        }
+        usleep(200000); 
     }
 
-    pid2 = fork();
-
-    if (pid2 < 0) {
-        perror("fork (hijo impares)");
-        kill(pid1, SIGKILL);
-        exit(EXIT_FAILURE);
+    for (int i = 0; i < NUM_CAMIONES; i++) {
+        pthread_join(hilos[i], NULL);
     }
 
-    if (pid2 == 0) {
-        printf("[Hijo IMPARES | PID %d] Iniciando hilos de números impares...\n",
-               getpid());
-        ejecutar_hijo_impares();
-        printf("[Hijo IMPARES | PID %d] Terminado.\n", getpid());
-        exit(EXIT_SUCCESS);
-    }
+    printf("\n--- Simulación finalizada ---\n");
 
-    printf("[Padre        | PID %d] Esperando a los hijos %d y %d...\n",
-           getpid(), pid1, pid2);
-
-    int status;
-
-    waitpid(pid1, &status, 0);
-    printf("[Padre        | PID %d] Hijo pares   (%d) terminó con estado %d.\n",
-           getpid(), pid1, WEXITSTATUS(status));
-
-    waitpid(pid2, &status, 0);
-    printf("[Padre        | PID %d] Hijo impares (%d) terminó con estado %d.\n",
-           getpid(), pid2, WEXITSTATUS(status));
-
-    printf("[Padre        | PID %d] Todos los procesos e hilos han finalizado.\n",
-           getpid());
+    printf("========================================================\n");
+    printf("  Todos los camiones completaron su ciclo de vida.\n");
+    printf("========================================================\n");
 
     return EXIT_SUCCESS;
 }
