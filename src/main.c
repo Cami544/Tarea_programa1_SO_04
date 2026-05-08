@@ -1,9 +1,10 @@
-#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <time.h>
+#include <unistd.h>
 #include "terminal.h"
 
 
@@ -29,6 +30,16 @@ int main(void) {
 
     imprimir_tabla_camiones(camiones, NUM_CAMIONES);
 
+
+    if (sem_init(&semaforo_muelles, 0, NUM_MUELLES) != 0) {
+        perror("sem_init");
+        exit(EXIT_FAILURE);
+    }
+    if (pthread_mutex_init(&mutex_log, NULL) != 0) {
+        perror("pthread_mutex_init");
+        exit(EXIT_FAILURE);
+    }
+
     printf("--- Iniciando simulación ---\n\n");
 
     for (int i = 0; i < NUM_CAMIONES; i++) {
@@ -44,6 +55,10 @@ int main(void) {
     }
 
     printf("\n--- Simulación finalizada ---\n");
+
+  
+    sem_destroy(&semaforo_muelles);
+    pthread_mutex_destroy(&mutex_log);
 
     printf("========================================================\n");
     printf("  Todos los camiones completaron su ciclo de vida.\n");

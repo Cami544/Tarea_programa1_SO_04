@@ -41,24 +41,40 @@ void reportar_estado(Camion *c, EstadoHilo nuevo_estado) {
 void *rutina_camion(void *arg) {
     Camion *c = (Camion *)arg;
 
+    /* el hilo se crea */
     c->tiempo_llegada = time(NULL);
-    reportar_estado(c, ESTADO_NUEVO);      
+    pthread_mutex_lock(&mutex_log);
+    reportar_estado(c, ESTADO_NUEVO);
+    pthread_mutex_unlock(&mutex_log);
 
-    reportar_estado(c, ESTADO_LISTO);    
-    usleep(100000); 
+    /* entra a la cola de planificación  */
+    pthread_mutex_lock(&mutex_log);
+    reportar_estado(c, ESTADO_LISTO);
+    pthread_mutex_unlock(&mutex_log);
+    usleep(100000);  /* simula espera*/
 
-    reportar_estado(c, ESTADO_BLOQUEADO);  
-    usleep(50000);  
+    /*  intenta obtener un muelle, sem_wait bloquea si no hay ── */
+    pthread_mutex_lock(&mutex_log);
+    reportar_estado(c, ESTADO_BLOQUEADO);
+    pthread_mutex_unlock(&mutex_log);
 
+    sem_wait(&semaforo_muelles);   /* espera hasta que haya muelle libre */
+
+    /* obtuvo el muelle y comienza la carga  */
     c->tiempo_inicio = time(NULL);
-    reportar_estado(c, ESTADO_EJECUCION);  
+    pthread_mutex_lock(&mutex_log);
+    reportar_estado(c, ESTADO_EJECUCION);
+    pthread_mutex_unlock(&mutex_log);
 
-    sleep(c->burst_cpu);
+    sleep(c->burst_cpu);           /* simula el tiempo de carga en el muelle */
 
+    sem_post(&semaforo_muelles);   /* libera el muelle para otro camión */
+
+    /* finalizó su carga  */
     c->tiempo_fin = time(NULL);
-
-   
-    reportar_estado(c, ESTADO_TERMINADO); 
+    pthread_mutex_lock(&mutex_log);
+    reportar_estado(c, ESTADO_TERMINADO);
+    pthread_mutex_unlock(&mutex_log);
 
     pthread_exit(NULL);
     return NULL;
