@@ -2,7 +2,7 @@ CC      = gcc
 CFLAGS  = -Wall -Wextra -Iinclude
 LDFLAGS = -lpthread
 
-SRC = src/main.c src/hilos.c src/sync.c
+SRC = src/main.c src/hilos.c src/sync.c src/scheduler.c
 TARGET  = terminal
 
 .PHONY: all clean
